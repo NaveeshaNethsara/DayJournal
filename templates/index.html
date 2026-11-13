@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DayJournal — Private Local Daily Journal</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Marked.js for live Markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- FontAwesome 6 icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Smooth custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    html:not(.dark) ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    html:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Markdown prose styles for light and dark */
+    .prose h1, .prose h2, .prose h3 { font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+    .dark .prose { color: #e2e8f0; }
+    .dark .prose blockquote { border-left: 3px solid #3b82f6; padding-left: 1rem; color: #94a3b8; font-style: italic; background: rgba(59, 130, 246, 0.05); }
+    html:not(.dark) .prose { color: #1e293b; }
+    html:not(.dark) .prose blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; color: #475569; font-style: italic; background: rgba(37, 99, 235, 0.05); }
+    .prose ul { list-style-type: disc; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+    .prose ol { list-style-type: decimal; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans antialiased transition-colors duration-200">
+
+  <!-- ========================================================================= -->
+  <!-- TOP APPLICATION NAVBAR -->
+  <!-- ========================================================================= -->
+  <header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#111827]/90 backdrop-blur px-6 flex items-center justify-between z-20 transition-colors">
+    <!-- Brand Title -->
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 font-bold text-lg">
+        ✨
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-bold tracking-tight text-slate-900 dark:text-white">DayJournal</h1>
+          <span class="text-[10px] font-bold tracking-wide uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/20 px-2 py-0.5 rounded-full">
+            ● Local SQLite
+          </span>
+        </div>
+        <p class="text-[11px] font-medium text-slate-500 dark:text-slate-400">100% Offline &amp; Private in your computer</p>
+      </div>
+    </div>
+
+    <!-- Actions (Insights, Export, Theme Toggle) -->
+    <div class="flex items-center gap-2.5">
+      <button onclick="openStatsModal()" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition flex items-center gap-2 shadow-sm">
+        <i class="fa-solid fa-chart-line text-blue-500"></i> Insights
+      </button>
+
+      <button onclick="openExportModal()" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition flex items-center gap-2 shadow-sm">
+        <i class="fa-solid fa-download text-emerald-500"></i> Export &amp; Backup
+      </button>
+
+      <!-- Theme Switch Button -->
+      <button onclick="toggleDarkMode()" id="themeToggleBtn" title="Toggle Light / Dark Mode" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-amber-300 border border-slate-200 dark:border-slate-700 transition flex items-center justify-center shadow-sm">
+        <i id="themeIcon" class="fa-solid fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE LAYOUT (Sidebar + Editor Canvas) -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- LEFT SIDEBAR: Entry History & Search -->
+    <aside class="w-80 md:w-96 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex flex-col flex-shrink-0 transition-colors">
+      
+      <!-- Top Action in Sidebar -->
+      <div class="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
+        <button onclick="newEntry()" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-md shadow-blue-500/25 transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plus text-xs"></i> New Journal Entry (Ctrl+N)
+        </button>
+
+        <!-- Search Bar -->
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+          <input type="text" id="searchInput" oninput="loadEntries()" placeholder="Search entries, notes, or tags..."
+            class="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition">
+        </div>
+
+        <!-- Mood Filter -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap">Filter:</span>
+          <select id="moodFilter" onchange="loadEntries()" class="flex-1 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg py-1.5 px-2.5 text-slate-800 dark:text-slate-200 font-medium focus:outline-none focus:border-blue-500 transition">
+            <option value="All">All Moods</option>
+            <option value="🌟 Fantastic">🌟 Fantastic</option>
+            <option value="😊 Happy">😊 Happy</option>
+            <option value="🧘 Calm">🧘 Calm</option>
+            <option value="💼 Productive">💼 Productive</option>
+            <option value="😐 Neutral">😐 Neutral</option>
+            <option value="🌧️ Down">🌧️ Down</option>
+            <option value="⚡ Stressed">⚡ Stressed</option>
+            <option value="😴 Tired">😴 Tired</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Entries Scroll List -->
+      <div id="entriesList" class="flex-1 overflow-y-auto p-3 space-y-2">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between">
+        <span id="entriesCount">0 entries</span>
+        <span class="flex items-center gap-1"><i class="fa-solid fa-database text-xs text-blue-500"></i> journal.db</span>
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN: Editor, Meta & Live Preview -->
+    <main class="flex-1 flex flex-col bg-slate-50 dark:bg-[#0B0F19] overflow-hidden transition-colors">
+
+      <!-- Editor Header Bar -->
+      <div class="px-7 py-3 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-[#111827]/70 flex flex-wrap items-center justify-between gap-3">
+        <!-- Date & Mood -->
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-300">📅 Date:</span>
+            <input type="date" id="entryDate" class="text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 shadow-sm">
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Mood:</span>
+            <select id="entryMood" class="text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 shadow-sm">
+              <option value="🌟 Fantastic">🌟 Fantastic</option>
+              <option value="😊 Happy">😊 Happy</option>
+              <option value="🧘 Calm">🧘 Calm</option>
+              <option value="💼 Productive">💼 Productive</option>
+              <option value="😐 Neutral">😐 Neutral</option>
+              <option value="🌧️ Down">🌧️ Down</option>
+              <option value="⚡ Stressed">⚡ Stressed</option>
+              <option value="😴 Tired">😴 Tired</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+          <span id="saveStatus" class="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">New Draft</span>
+          <button id="btnDelete" onclick="deleteCurrentEntry()" class="hidden px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-950/60 dark:hover:bg-red-900/80 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800/60 transition shadow-sm">
+            <i class="fa-solid fa-trash-can mr-1"></i> Delete
+          </button>
+          <button onclick="saveCurrentEntry()" class="px-5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-2 shadow-md shadow-emerald-600/25">
+            <i class="fa-solid fa-floppy-disk"></i> Save (Ctrl+S)
+          </button>
+        </div>
+      </div>
+
+      <!-- Title, Tags & Reflection Prompts -->
+      <div class="px-7 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] space-y-2.5 transition-colors">
+        <input type="text" id="entryTitle" placeholder="Title (e.g. Milestone reached, Deep thoughts, Today's wins...)"
+          class="w-full text-lg font-bold bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none">
+
+        <div class="flex items-center gap-4">
+          <div class="flex-1 flex items-center gap-2">
+            <i class="fa-solid fa-tags text-xs text-slate-400"></i>
+            <input type="text" id="entryTags" placeholder="Tags (comma-separated, e.g. #work, #learning, #gratitude)"
+              class="w-full text-xs font-medium bg-transparent text-slate-700 dark:text-slate-300 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none">
+          </div>
+          <!-- Quick reflection prompt insertion -->
+          <select id="promptSelect" onchange="insertPrompt(this.value)" class="text-xs font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg py-1.5 px-3 focus:outline-none max-w-sm shadow-sm">
+            <option value="">💡 Insert reflection prompt...</option>
+            <option value="What went really well today and why?">What went really well today?</option>
+            <option value="What are 3 things I am deeply grateful for today?">3 things I am grateful for</option>
+            <option value="What was my biggest breakthrough or victory today?">Biggest breakthrough today</option>
+            <option value="What challenge did I face today, and how did I overcome it?">Today's main challenge</option>
+            <option value="What is one valuable lesson or insight I gained today?">One key lesson learned</option>
+            <option value="What are my top 3 focus priorities for tomorrow?">Top 3 priorities for tomorrow</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Writing Editor Canvas & Preview Split -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- Writing Textarea -->
+        <div class="flex-1 flex flex-col p-7 overflow-hidden">
+          <textarea id="entryContent" oninput="onTextChange()" placeholder="Write freely here... Markdown formatting is supported (# header, - bullet, > quote, **bold**)"
+            class="flex-1 w-full bg-transparent text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 resize-none focus:outline-none text-sm leading-relaxed font-sans select-text"></textarea>
+        </div>
+
+        <!-- Live Markdown Preview -->
+        <div id="previewPane" class="w-1/2 border-l border-slate-200 dark:border-slate-800 p-7 overflow-y-auto hidden bg-slate-50/60 dark:bg-slate-900/30">
+          <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Live Markdown Preview</div>
+          <div id="previewContent" class="prose text-sm max-w-none"></div>
+        </div>
+      </div>
+
+      <!-- Bottom Status Bar -->
+      <div class="px-7 py-2.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 transition-colors">
+        <div id="wordCountStats">Words: 0   |   Characters: 0   |   Reading time: ~0m</div>
+        <div class="flex items-center gap-4">
+          <button onclick="togglePreview()" class="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5">
+            <i class="fa-regular fa-eye"></i> <span id="previewToggleText">Toggle Markdown Preview</span>
+          </button>
+          <span>•</span>
+          <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><i class="fa-solid fa-lock"></i> 100% Private on this PC</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- STATS & INSIGHTS MODAL -->
+  <!-- ========================================================================= -->
+  <div id="statsModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 transition-colors">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-blue-500"></i> Journal Insights &amp; Streaks
+        </h3>
+        <button onclick="closeStatsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3" id="statsGrid">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div>
+        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mood Distribution</h4>
+        <div id="statsMoods" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+        </div>
+      </div>
+
+      <button onclick="closeStatsModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold rounded-xl text-xs transition">
+        Close
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- EXPORT & BACKUP MODAL -->
+  <!-- ========================================================================= -->
+  <div id="exportModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 transition-colors">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-download text-emerald-500"></i> Export &amp; Backup
+        </h3>
+        <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <p class="text-xs text-slate-600 dark:text-slate-400">
+        You have 100% ownership of your journal entries. Export your notes or make a local backup of `journal.db` anytime.
+      </p>
+
+      <div class="space-y-2.5">
+        <a href="/api/export?format=markdown" download class="block w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 transition text-center shadow-sm">
+          <i class="fa-brands fa-markdown text-blue-500 mr-2"></i> Export to Markdown (.md)
+        </a>
+        <a href="/api/export?format=json" download class="block w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 transition text-center shadow-sm">
+          <i class="fa-solid fa-code text-amber-500 mr-2"></i> Export to JSON (.json)
+        </a>
+        <a href="/api/export?format=csv" download class="block w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 transition text-center shadow-sm">
+          <i class="fa-solid fa-file-csv text-emerald-500 mr-2"></i> Export to CSV / Excel (.csv)
+        </a>
+        <a href="/api/backup" download class="block w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition text-center shadow-md shadow-emerald-600/25">
+          <i class="fa-solid fa-database text-white mr-2"></i> Download Full SQLite Database (.db)
+        </a>
+      </div>
+
+      <button onclick="closeExportModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold rounded-xl text-xs transition">
+        Close
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT LOGIC -->
+  <!-- ========================================================================= -->
+  <script>
+    let currentEntryId = null;
+    let isModified = false;
+    let showPreview = false;
+
+    // Mood Badges Styling Dictionary
+    const MOOD_STYLES = {
+      "🌟 Fantastic": "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/60",
+      "😊 Happy":     "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60",
+      "🧘 Calm":      "bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-800/60",
+      "💼 Productive":"bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-800/60",
+      "😐 Neutral":   "bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700",
+      "🌧️ Down":      "bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800/60",
+      "⚡ Stressed":  "bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800/60",
+      "😴 Tired":     "bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border-violet-300 dark:border-violet-800/60"
+    };
+
+    // Initialize Theme from localStorage
+    function initTheme() {
+      const savedTheme = localStorage.getItem('dayjournal_theme') || 'dark';
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeIcon').className = "fa-solid fa-moon text-amber-300";
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('themeIcon').className = "fa-solid fa-sun text-amber-500";
+      }
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const isDark = html.classList.toggle('dark');
+      localStorage.setItem('dayjournal_theme', isDark ? 'dark' : 'light');
+      document.getElementById('themeIcon').className = isDark ? "fa-solid fa-moon text-amber-300" : "fa-solid fa-sun text-amber-500";
+    }
+
+    // Set today's date initially
+    document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      loadEntries();
+      updateCounts();
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveCurrentEntry();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        newEntry();
+      }
+    });
+
+    async function loadEntries() {
+      const search = document.getElementById('searchInput').value;
+      const mood = document.getElementById('moodFilter').value;
+      const url = `/api/entries?search=${encodeURIComponent(search)}&mood=${encodeURIComponent(mood)}`;
+
+      try {
+        const res = await fetch(url);
+        const entries = await res.json();
+        renderEntriesList(entries);
+      } catch (err) {
+        console.error("Failed to load entries:", err);
+      }
+    }
+
+    function renderEntriesList(entries) {
+      const container = document.getElementById('entriesList');
+      document.getElementById('entriesCount').textContent = `${entries.length} entries`;
+
+      if (entries.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 text-slate-400 dark:text-slate-500 text-xs">
+            <p class="font-semibold">No journal entries found.</p>
+            <p class="mt-1">Click "+ New Journal Entry" to begin!</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = entries.map(e => {
+        const isActive = e.id === currentEntryId;
+        const activeClass = isActive 
+          ? "bg-blue-50/80 dark:bg-slate-800 border-blue-500 dark:border-blue-500 shadow-sm" 
+          : "bg-white dark:bg-slate-900/80 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-slate-200 dark:border-slate-800";
+
+        const moodStyle = MOOD_STYLES[e.mood] || "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+
+        const tagsHtml = e.tags 
+          ? e.tags.split(',').slice(0, 3).map(t => `<span class="text-[10px] font-bold text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-sky-800/40">#${t.trim()}</span>`).join(' ')
+          : '';
+
+        const snippet = (e.content || '').replace(/\n/g, ' ').slice(0, 75);
+
+        return `
+          <div onclick="selectEntry(${e.id})" class="p-3.5 rounded-xl border ${activeClass} cursor-pointer transition text-left space-y-1.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="font-bold text-slate-500 dark:text-slate-400">📅 ${e.entry_date}</span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${moodStyle}">
+                ${e.mood || ''}
+              </span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">${escapeHtml(e.title || 'Untitled')}</h4>
+            <p class="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(snippet || '(Empty entry)')}</p>
+            ${tagsHtml ? `<div class="pt-1 flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function selectEntry(id) {
+      try {
+        const res = await fetch(`/api/entries/${id}`);
+        const entry = await res.json();
+        currentEntryId = entry.id;
+
+        document.getElementById('entryDate').value = entry.entry_date;
+        document.getElementById('entryMood').value = entry.mood || '😊 Happy';
+        document.getElementById('entryTitle').value = entry.title || '';
+        document.getElementById('entryTags').value = entry.tags || '';
+        document.getElementById('entryContent').value = entry.content || '';
+
+        document.getElementById('btnDelete').classList.remove('hidden');
+        document.getElementById('saveStatus').textContent = `✓ Saved (${entry.entry_time})`;
+        document.getElementById('saveStatus').className = "text-xs font-bold text-emerald-600 dark:text-emerald-400 mr-1";
+
+        updateCounts();
+        loadEntries();
+      } catch (err) {
+        alert("Failed to load entry: " + err);
+      }
+    }
+
+    function newEntry() {
+      currentEntryId = null;
+      document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('entryMood').value = '😊 Happy';
+      document.getElementById('entryTitle').value = '';
+      document.getElementById('entryTags').value = '';
+      document.getElementById('entryContent').value = '';
+      document.getElementById('btnDelete').classList.add('hidden');
+      document.getElementById('saveStatus').textContent = 'New Draft';
+      document.getElementById('saveStatus').className = "text-xs font-bold text-slate-500 dark:text-slate-400 mr-1";
+
+      updateCounts();
+      loadEntries();
+      document.getElementById('entryTitle').focus();
+    }
+
+    async function saveCurrentEntry() {
+      const title = document.getElementById('entryTitle').value.trim();
+      const content = document.getElementById('entryContent').value.trim();
+      const entry_date = document.getElementById('entryDate').value;
+      const mood = document.getElementById('entryMood').value;
+      const tags = document.getElementById('entryTags').value.trim();
+
+      if (!title && !content) {
+        alert("Please write a title or thoughts before saving.");
+        return;
+      }
+
+      const payload = {
+        id: currentEntryId,
+        entry_date,
+        title: title || `Journal Entry - ${entry_date}`,
+        content,
+        mood,
+        tags
+      };
+
+      try {
+        const res = await fetch('/api/entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        currentEntryId = data.id;
+
+        const now = new Date().toLocaleTimeString();
+        document.getElementById('saveStatus').textContent = `✓ Saved at ${now}`;
+        document.getElementById('saveStatus').className = "text-xs font-bold text-emerald-600 dark:text-emerald-400 mr-1";
+        document.getElementById('btnDelete').classList.remove('hidden');
+
+        loadEntries();
+      } catch (err) {
+        alert("Error saving entry: " + err);
+      }
+    }
+
+    async function deleteCurrentEntry() {
+      if (!currentEntryId) return;
+      if (!confirm("Are you sure you want to permanently delete this entry?")) return;
+
+      try {
+        await fetch(`/api/entries/${currentEntryId}`, { method: 'DELETE' });
+        newEntry();
+        loadEntries();
+      } catch (err) {
+        alert("Error deleting entry: " + err);
+      }
+    }
+
+    function onTextChange() {
+      updateCounts();
+      document.getElementById('saveStatus').textContent = "● Unsaved changes*";
+      document.getElementById('saveStatus').className = "text-xs font-bold text-amber-600 dark:text-amber-400 mr-1";
+    }
+
+    function updateCounts() {
+      const text = document.getElementById('entryContent').value.trim();
+      const words = text ? text.split(/\s+/).length : 0;
+      const chars = text.length;
+      const readTime = words > 0 ? Math.max(1, Math.round(words / 200)) : 0;
+      document.getElementById('wordCountStats').textContent = `Words: ${words.toLocaleString()}   |   Characters: ${chars.toLocaleString()}   |   Reading time: ~${readTime}m`;
+
+      if (showPreview) {
+        document.getElementById('previewContent').innerHTML = marked.parse(text || '*No content yet.*');
+      }
+    }
+
+    function togglePreview() {
+      showPreview = !showPreview;
+      const pane = document.getElementById('previewPane');
+      const text = document.getElementById('previewToggleText');
+      if (showPreview) {
+        pane.classList.remove('hidden');
+        text.textContent = 'Hide Markdown Preview';
+        updateCounts();
+      } else {
+        pane.classList.add('hidden');
+        text.textContent = 'Toggle Markdown Preview';
+      }
+    }
+
+    function insertPrompt(val) {
+      if (!val) return;
+      const textarea = document.getElementById('entryContent');
+      const prefix = textarea.value.trim() ? "\n\n" : "";
+      textarea.value += `${prefix}### 💡 ${val}\n> `;
+      document.getElementById('promptSelect').value = "";
+      textarea.focus();
+      onTextChange();
+    }
+
+    async function openStatsModal() {
+      try {
+        const res = await fetch('/api/stats');
+        const stats = await res.json();
+
+        const grid = document.getElementById('statsGrid');
+        grid.innerHTML = `
+          <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <div class="text-2xl font-bold text-sky-600 dark:text-sky-400">${stats.total_entries}</div>
+            <div class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">Total Entries</div>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${stats.total_words.toLocaleString()}</div>
+            <div class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">Words Written</div>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <div class="text-2xl font-bold text-amber-600 dark:text-amber-400">${stats.streak_days} Days 🔥</div>
+            <div class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">Daily Streak</div>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+            <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">${Math.round(stats.total_words / Math.max(1, stats.total_entries))}</div>
+            <div class="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">Avg Words/Entry</div>
+          </div>
+        `;
+
+        const moodDiv = document.getElementById('statsMoods');
+        const moods = Object.entries(stats.mood_counts || {});
+        if (moods.length === 0) {
+          moodDiv.innerHTML = `<p class="text-slate-400 text-xs text-center py-2">No mood data recorded yet.</p>`;
+        } else {
+          moodDiv.innerHTML = moods.map(([m, c]) => `
+            <div class="flex items-center justify-between text-xs py-1.5 px-3">
+              <span class="font-semibold text-slate-700 dark:text-slate-200">${m}</span>
+              <span class="font-bold text-blue-600 dark:text-sky-400">${c} entries</span>
+            </div>
+          `).join('');
+        }
+
+        document.getElementById('statsModal').classList.remove('hidden');
+      } catch (err) {
+        alert("Error loading stats: " + err);
+      }
+    }
+
+    function closeStatsModal() {
+      document.getElementById('statsModal').classList.add('hidden');
+    }
+
+    function openExportModal() {
+      document.getElementById('exportModal').classList.remove('hidden');
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportModal').classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      return (str || '')
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
